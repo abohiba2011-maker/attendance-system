@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 إدارة الحركات - محمية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #7f1d1d, #0f172a);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4 text-white">
+
+    <div class="w-full max-w-md">
+        <div class="bg-slate-900/90 backdrop-blur-xl border border-rose-700/60 shadow-2xl rounded-3xl p-8 space-y-6">
+
+            <div class="text-center space-y-2">
+                <div class="w-20 h-20 mx-auto rounded-2xl bg-rose-600 flex items-center justify-center text-4xl shadow-lg shadow-rose-500/50">
+                    🔒
+                </div>
+                <h1 class="text-2xl font-black text-white">إدارة الحركات</h1>
+                <p class="text-sm text-rose-300">صفحة حساسة — محمية بكلمة مرور إضافية</p>
+            </div>
+
+            {% if error %}
+            <div class="bg-rose-600/20 border border-rose-500/50 text-rose-300 px-4 py-3 rounded-xl text-center text-sm font-bold">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <div class="bg-rose-900/30 border border-rose-700 rounded-2xl p-4">
+                <p class="text-xs text-rose-100 text-center">
+                    ⚠️ هذه الصفحة تسمح بـ <strong>حذف وتعديل</strong> حركات الموظفين
+                </p>
+            </div>
+
+            <form method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2 font-bold">
+                        🔑 كلمة مرور إدارة الحركات
+                    </label>
+                    <input type="password" name="password" required autofocus
+                           class="w-full bg-slate-950 border-2 border-rose-700 focus:border-rose-500 rounded-xl px-4 py-4 text-center text-lg text-white outline-none transition"
+                           placeholder="••••••••"
+                           autocomplete="current-password">
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white font-bold py-4 rounded-xl shadow-lg transition text-lg">
+                    🔓 دخول
+                </button>
+            </form>
+
+            <div class="text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+                <a href="/admin" class="text-blue-400 hover:underline">← العودة للوحة الأدمن</a>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

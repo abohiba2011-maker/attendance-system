@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة حركات الموظفين</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Cairo', sans-serif; background: #0f172a; min-height: 100vh; }</style>
+</head>
+<body class="text-slate-100">
+
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center text-xl">🗂️</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">إدارة حركات الموظفين</h1>
+                    <p class="text-xs text-rose-400">حذف أو تعديل الحركات</p>
+                </div>
+            </div>
+            <a href="/admin" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-700">
+                ← العودة للوحة
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- Info -->
+        <div class="bg-rose-900/30 border border-rose-700 rounded-2xl p-5">
+            <h3 class="font-bold text-rose-300 mb-2">⚠️ تحذير</h3>
+            <ul class="text-sm text-rose-100 space-y-1">
+                <li>🚨 الحذف <strong>نهائي</strong> ولا يمكن التراجع عنه</li>
+                <li>✅ يُسجَّل كل حذف في سجل العمليات</li>
+                <li>💾 تأكد من النسخ الاحتياطي قبل الحذف الجماعي</li>
+            </ul>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="px-4 py-3 rounded-xl text-center font-bold text-sm {% if category == 'success' %}bg-emerald-600{% else %}bg-rose-600{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Filter -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3 mb-4">🔍 الفلترة</h2>
+            <form method="GET" action="/admin/manage_attendance" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">الموظف</label>
+                    <select name="emp_code"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                        <option value="all" {% if selected_emp == 'all' %}selected{% endif %}>جميع الموظفين</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.code }}" {% if selected_emp == emp.code %}selected{% endif %}>
+                            {{ emp.first_name }} {{ emp.last_name or '' }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">من تاريخ</label>
+                    <input type="date" name="start_date" value="{{ start_date }}"
+                           class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">إلى تاريخ</label>
+                    <input type="date" name="end_date" value="{{ end_date }}"
+                           class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl text-sm transition">
+                        🔍 عرض
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if records %}
+
+        <!-- Bulk Actions -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <div class="flex justify-between items-center flex-wrap gap-3">
+                <div>
+                    <h3 class="text-lg font-bold text-white">
+                        📋 عدد الحركات: <span class="text-blue-400">{{ total_records }}</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">حدد الحركات ثم اضغط حذف</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="selectAll()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm px-4 py-2 rounded-xl font-bold">
+                        ✅ تحديد الكل
+                    </button>
+                    <button onclick="deselectAll()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm px-4 py-2 rounded-xl font-bold">
+                        ❌ إلغاء التحديد
+                    </button>
+                    <button onclick="deleteSelected()" class="bg-rose-600 hover:bg-rose-500 text-white text-sm px-4 py-2 rounded-xl font-bold">
+                        🗑️ حذف المحددة
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Records Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <form id="bulk-form" method="POST" action="/admin/manage_attendance/delete_bulk">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800">
+                                <th class="py-3 px-2 w-12">
+                                    <input type="checkbox" id="select-all-checkbox" onchange="toggleAll(this)"
+                                           class="w-5 h-5 accent-blue-500">
+                                </th>
+                                <th class="py-3 px-2">التاريخ</th>
+                                <th class="py-3 px-2">الموظف</th>
+                                <th class="py-3 px-2">الحدث</th>
+                                <th class="py-3 px-2">الدخول</th>
+                                <th class="py-3 px-2">الانصراف</th>
+                                <th class="py-3 px-2">التأخير</th>
+                                <th class="py-3 px-2">المدة</th>
+                                <th class="py-3 px-2">المصدر</th>
+                                <th class="py-3 px-2">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% set type_ar = {'in': 'حضور', 'out': 'انصراف', 'leave': 'انصراف بسبب', 'return': 'عودة'} %}
+                            {% for rec in records %}
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2 px-2">
+                                    <input type="checkbox" name="record_ids" value="{{ rec.id }}"
+                                           class="record-checkbox w-5 h-5 accent-blue-500">
+                                </td>
+                                <td class="py-2 px-2 text-slate-300 text-xs">{{ rec.date }}</td>
+                                <td class="py-2 px-2 font-bold">{{ rec.first_name or '?' }} {{ rec.last_name or '' }}</td>
+                                <td class="py-2 px-2">
+                                    <span class="px-2 py-1 rounded text-xs font-bold
+                                        {% if rec.event_type == 'in' %}bg-emerald-950 text-emerald-400
+                                        {% elif rec.event_type == 'out' %}bg-rose-950 text-rose-400
+                                        {% elif rec.event_type == 'leave' %}bg-amber-950 text-amber-400
+                                        {% else %}bg-blue-950 text-blue-400{% endif %}">
+                                        {{ type_ar.get(rec.event_type, rec.event_type) }}
+                                    </span>
+                                </td>
+                                <td class="py-2 px-2 font-mono text-xs text-emerald-400">{{ rec.check_in or '-' }}</td>
+                                <td class="py-2 px-2 font-mono text-xs text-rose-400">{{ rec.check_out or '-' }}</td>
+                                <td class="py-2 px-2 text-xs text-amber-300">
+                                    {% if rec.late_minutes and rec.late_minutes > 0 %}{{ rec.late_minutes }} د{% else %}-{% endif %}
+                                </td>
+                                <td class="py-2 px-2 text-xs text-amber-300">
+                                    {% if rec.duration_min %}{{ rec.duration_min }} د{% else %}-{% endif %}
+                                </td>
+                                <td class="py-2 px-2 text-xs">
+                                    {% if rec.notes and 'admin' in rec.notes %}
+                                        <span class="text-purple-400">👤 أدمن</span>
+                                    {% elif rec.notes and 'WiFi' in rec.notes %}
+                                        <span class="text-cyan-400">📡 تلقائي</span>
+                                    {% else %}
+                                        <span class="text-emerald-400">👤 ذاتي</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2 px-2 whitespace-nowrap">
+                                    <a href="/admin/manage_attendance/edit/{{ rec.id }}"
+                                       class="inline-block bg-blue-600 hover:bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                                        ✏️
+                                    </a>
+                                    <button type="button" onclick="deleteOne({{ rec.id }})"
+                                            class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-2 py-1 rounded">
+                                        🗑️
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+
+        <!-- Delete Range -->
+        <div class="bg-rose-950/50 border-2 border-rose-700 rounded-2xl p-6 shadow">
+            <h2 class="text-lg font-bold text-rose-400 border-b border-rose-800 pb-3 mb-4">⚠️ حذف فترة كاملة</h2>
+            <p class="text-xs text-rose-200 mb-4">
+                سيتم حذف <strong>كل الحركات</strong> في الفترة والموظف المحددين. <br>
+                اكتب <code class="bg-rose-900 px-2 py-0.5 rounded font-mono">DELETE</code> للتأكيد.
+            </p>
+            <form method="POST" action="/admin/manage_attendance/delete_range"
+                  class="grid grid-cols-1 md:grid-cols-4 gap-3"
+                  onsubmit="return confirm('🚨 سيتم حذف كل الحركات في هذه الفترة! متابعة؟')">
+                <input type="hidden" name="emp_code" value="{{ selected_emp }}">
+                <input type="hidden" name="start_date" value="{{ start_date }}">
+                <input type="hidden" name="end_date" value="{{ end_date }}">
+                
+                <div class="md:col-span-3 bg-rose-900/30 rounded-xl p-3 text-sm">
+                    <p class="font-bold text-rose-200">
+                        سيتم حذف: 
+                        <span class="text-white">{{ selected_emp if selected_emp != 'all' else 'جميع الموظفين' }}</span>
+                        من <span class="text-white">{{ start_date }}</span>
+                        إلى <span class="text-white">{{ end_date }}</span>
+                    </p>
+                </div>
+                
+                <input type="text" name="confirm" placeholder="اكتب DELETE"
+                       required
+                       class="bg-slate-950 border-2 border-rose-600 rounded-xl px-3 py-2 text-white text-center font-mono font-bold">
+                
+                <button type="submit"
+                        class="md:col-span-4 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-xl transition">
+                    🗑️ حذف الفترة كاملة
+                </button>
+            </form>
+        </div>
+
+        {% else %}
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow">
+            <div class="text-6xl mb-4">📭</div>
+            <p class="text-slate-400">لا توجد حركات مطابقة للفلتر</p>
+            <p class="text-xs text-slate-500 mt-2">جرّب تغيير الفترة أو الموظف</p>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script>
+        function toggleAll(checkbox) {
+            document.querySelectorAll('.record-checkbox').forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = true);
+            document.getElementById('select-all-checkbox').checked = true;
+        }
+
+        function deselectAll() {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('select-all-checkbox').checked = false;
+        }
+
+        function deleteSelected() {
+            const checked = document.querySelectorAll('.record-checkbox:checked');
+            if (checked.length === 0) {
+                alert('⚠️ لم تحدد أي حركة');
+                return;
+            }
+            
+            if (confirm(`🚨 سيتم حذف ${checked.length} حركة. متابعة؟`)) {
+                document.getElementById('bulk-form').submit();
+            }
+        }
+
+        function deleteOne(id) {
+            if (confirm('⚠️ حذف هذه الحركة؟')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/admin/manage_attendance/delete_bulk';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'record_ids';
+                input.value = id;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الأدمن - صيدلية المقري شنن عثمان</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; color: #f1f5f9; min-height: 100vh; }
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { background: #2563eb; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .flash-success { background: #059669; }
+        .flash-error { background: #e11d48; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-xl shadow">🛠️</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">لوحة تحكم الأدمن</h1>
+                    <p class="text-xs text-blue-400">صيدلية المقري شنن عثمان</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="/admin/quick" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">⚡ تسجيل سريع</a>
+                <a href="/admin/manage_attendance" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">🗂️ إدارة الحركات</a>
+                <a href="/admin/tokens" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">🔗 الروابط</a>
+                <a href="/admin/devices" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">📱 الأجهزة</a>
+                <a href="/admin/presence" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">📡 التواجد</a>
+                <a href="/admin/allowed_ips" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">🖥️ IPs</a>
+                <a href="/door" target="_blank" class="bg-pink-600 hover:bg-pink-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">🚪 الباب</a>
+                <a href="/report" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">📊 التقارير</a>
+                <a href="/kiosk" target="_blank" class="bg-violet-600 hover:bg-violet-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">📺 Kiosk</a>
+                <a href="/" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition">🏠 الرئيسية</a>
+                <a href="/logout" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">🚪 خروج</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- License Warning -->
+        {% if license_status == 'warning' %}
+        <div class="bg-amber-900/40 border-2 border-amber-600 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <p class="font-bold text-amber-300 text-lg">⚠️ {{ license_message }}</p>
+                <p class="text-xs text-amber-200 mt-1">جدّد الترخيص لتجنب توقف البرنامج</p>
+            </div>
+            <a href="https://wa.me/213669659661?text={{ ('السلام عليكم، أريد تجديد الترخيص. بصمة الجهاز: ' ~ machine_id)|urlencode }}"
+               target="_blank"
+               class="bg-green-600 hover:bg-green-500 text-white font-bold px-5 py-2 rounded-xl transition">
+                📱 تجديد الآن
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="px-4 py-3 rounded-xl text-center font-bold text-sm {% if category == 'success' %}flash-success{% else %}flash-error{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+                <span class="text-xs text-slate-400 block">إجمالي الموظفين</span>
+                <span class="text-3xl font-black text-white mt-1 block">{{ stats.total }}</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+                <span class="text-xs text-slate-400 block">الحاضرون اليوم</span>
+                <span id="admin-present-count" class="text-3xl font-black text-emerald-400 mt-1 block">{{ stats.present }}</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+                <span class="text-xs text-slate-400 block">المتأخرون اليوم</span>
+                <span id="admin-late-count" class="text-3xl font-black text-amber-400 mt-1 block">{{ stats.late }}</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+                <span class="text-xs text-slate-400 block">الغائبون اليوم</span>
+                <span id="admin-absent-count" class="text-3xl font-black text-rose-400 mt-1 block">{{ stats.absent }}</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 flex-wrap border-b border-slate-800 pb-2">
+            <button onclick="showTab(event, 'tab-employees')" class="tab-btn active px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">👥 الموظفون</button>
+            <button onclick="showTab(event, 'tab-reasons')" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">🚪 أسباب الانصراف</button>
+            <button onclick="showTab(event, 'tab-attendance')" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">📋 السجلات</button>
+            <button onclick="showTab(event, 'tab-chart')" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">📊 الرسم البياني</button>
+            <button onclick="showTab(event, 'tab-notify')" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">📱 الإشعارات</button>
+            <button onclick="showTab(event, 'tab-security')" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">🔐 الأمان</button>
+            <button onclick="showTab(event, 'tab-license')" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700">🔑 الترخيص</button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: Employees -->
+        <!-- ============================================== -->
+        <div id="tab-employees" class="tab-content active space-y-6">
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3 mb-4">➕ إضافة موظف جديد</h2>
+                <form action="/add_employee" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-7 gap-3">
+                    <input type="text" name="code" placeholder="الكود الوظيفي *" required
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-blue-500 outline-none">
+                    <input type="text" name="first_name" placeholder="الاسم الأول *" required
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-blue-500 outline-none">
+                    <input type="text" name="last_name" placeholder="اللقب"
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-blue-500 outline-none">
+                    <input type="text" name="phone" placeholder="رقم الهاتف"
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:border-blue-500 outline-none">
+                    <input type="file" name="photo" accept="image/*"
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                    <div class="flex items-center text-xs text-slate-500 px-2">صورة (اختياري)</div>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl text-sm transition">
+                        ➕ إضافة
+                    </button>
+                </form>
+                <p class="text-xs text-slate-500 mt-3">💡 بعد إضافة الموظف، انتقل إلى "⚙️ الورديات" لضبط جدوله.</p>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3 mb-4">
+                    👥 الموظفون ({{ employees|length }})
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800">
+                                <th class="py-3 px-2">صورة</th>
+                                <th class="py-3 px-2">الكود</th>
+                                <th class="py-3 px-2">الاسم الكامل</th>
+                                <th class="py-3 px-2">الهاتف</th>
+                                <th class="py-3 px-2">الورديات</th>
+                                <th class="py-3 px-2">QR</th>
+                                <th class="py-3 px-2">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for emp in employees %}
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-3 px-2">
+                                    {% if emp.photo %}
+                                    <img src="{{ url_for('static', filename='uploads/' ~ emp.photo) }}"
+                                         class="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                                         onerror="this.style.display='none'">
+                                    {% else %}
+                                    <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xs">👤</div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-2 font-mono text-blue-400">{{ emp.code }}</td>
+                                <td class="py-3 px-2 font-bold">{{ emp.first_name }} {{ emp.last_name or '' }}</td>
+                                <td class="py-3 px-2 text-slate-300 text-xs">
+                                    {% if emp.phone %}
+                                    <a href="tel:{{ emp.phone }}" class="text-emerald-400 hover:underline">{{ emp.phone }}</a>
+                                    {% else %}-{% endif %}
+                                </td>
+                                <td class="py-3 px-2">
+                                    {% if emp.shifts %}
+                                        {% for sname in emp.shifts.keys() %}
+                                        <span class="inline-block bg-blue-950 text-blue-400 border border-blue-800 px-2 py-0.5 rounded text-xs mb-1">{{ sname }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-rose-400 text-xs">⚠️ لم تُضبط</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-2">
+                                    {% if emp.qr_code %}
+                                    <a href="{{ url_for('static', filename='qr_codes/' ~ emp.qr_code) }}"
+                                       target="_blank"
+                                       class="text-blue-400 hover:underline text-xs bg-blue-950 px-2 py-1 rounded border border-blue-800">
+                                        عرض
+                                    </a>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-2 whitespace-nowrap">
+                                    <a href="/employee/{{ emp.code }}/shifts"
+                                       class="inline-block bg-purple-600 hover:bg-purple-500 text-white text-xs px-2 py-1 rounded mb-1">
+                                        ⚙️ الورديات
+                                    </a>
+                                    <form action="/delete_employee/{{ emp.id }}" method="POST"
+                                          onsubmit="return confirm('حذف الموظف نهائياً؟')" class="inline">
+                                        <button class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-2 py-1 rounded">
+                                            🗑️
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-slate-500 py-8">لا يوجد موظفون.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: Leave Reasons -->
+        <!-- ============================================== -->
+        <div id="tab-reasons" class="tab-content space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-amber-400 border-b border-slate-800 pb-3 mb-4">➕ إضافة سبب انصراف</h2>
+                <form action="/add_leave_reason" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="text" name="reason_name" placeholder="اسم السبب" required
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    <input type="text" name="icon" placeholder="أيقونة (🕌)" maxlength="2"
+                           class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    <div class="hidden md:block"></div>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-xl text-sm">
+                        ➕ إضافة
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-amber-400 border-b border-slate-800 pb-3 mb-4">🚪 الأسباب المتاحة</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {% for r in reasons %}
+                    <div class="bg-slate-950 border {% if r.active %}border-emerald-700{% else %}border-slate-800 opacity-50{% endif %} rounded-2xl p-4 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">{{ r.icon }}</span>
+                            <div class="font-bold">{{ r.reason_name }}</div>
+                        </div>
+                        <div class="flex gap-1">
+                            <form action="/toggle_leave_reason/{{ r.id }}" method="POST" class="inline">
+                                <button class="text-xs px-2 py-1 rounded {% if r.active %}bg-amber-600{% else %}bg-emerald-600{% endif %} text-white">
+                                    {% if r.active %}تعطيل{% else %}تفعيل{% endif %}
+                                </button>
+                            </form>
+                            <form action="/delete_leave_reason/{{ r.id }}" method="POST"
+                                  onsubmit="return confirm('حذف السبب؟')" class="inline">
+                                <button class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-2 py-1 rounded">🗑️</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: Attendance -->
+        <!-- ============================================== -->
+        <div id="tab-attendance" class="tab-content">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3 mb-4">📋 آخر 100 سجل</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-800">
+                                <th class="py-3 px-2">التاريخ</th>
+                                <th class="py-3 px-2">الموظف</th>
+                                <th class="py-3 px-2">الوردية</th>
+                                <th class="py-3 px-2">الحدث</th>
+                                <th class="py-3 px-2">الوقت</th>
+                                <th class="py-3 px-2">المدة/التأخير</th>
+                                <th class="py-3 px-2">المصدر</th>
+                                <th class="py-3 px-2">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% set type_ar = {'in': 'حضور', 'out': 'انصراف', 'leave': 'انصراف بسبب', 'return': 'عودة'} %}
+                            {% for rec in attendance %}
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="py-2 px-2 text-slate-300 text-xs">{{ rec.date }}</td>
+                                <td class="py-2 px-2 font-bold">{{ rec.first_name or '?' }} {{ rec.last_name or '' }}</td>
+                                <td class="py-2 px-2 text-slate-300 text-xs">{{ rec.shift_name or '-' }}</td>
+                                <td class="py-2 px-2">
+                                    <span class="px-2 py-1 rounded text-xs font-bold
+                                        {% if rec.event_type == 'in' %}bg-emerald-950 text-emerald-400 border border-emerald-800
+                                        {% elif rec.event_type == 'out' %}bg-rose-950 text-rose-400 border border-rose-800
+                                        {% elif rec.event_type == 'leave' %}bg-amber-950 text-amber-400 border border-amber-800
+                                        {% else %}bg-blue-950 text-blue-400 border border-blue-800{% endif %}">
+                                        {{ type_ar.get(rec.event_type, rec.event_type) }}
+                                    </span>
+                                </td>
+                                <td class="py-2 px-2 font-mono text-xs">{{ rec.check_in or rec.check_out or '-' }}</td>
+                                <td class="py-2 px-2 text-xs">
+                                    {% if rec.duration_min %}<span class="text-amber-300">{{ rec.duration_min }} د</span>
+                                    {% elif rec.late_minutes and rec.late_minutes > 0 %}<span class="text-rose-400">{{ rec.late_minutes }} د</span>
+                                    {% else %}-{% endif %}
+                                </td>
+                                <td class="py-2 px-2 text-xs">
+                                    {% if rec.notes and 'admin' in rec.notes %}<span class="text-purple-400">👤 أدمن</span>
+                                    {% elif rec.notes and 'WiFi' in rec.notes %}<span class="text-cyan-400">📡 تلقائي</span>
+                                    {% else %}<span class="text-emerald-400">👤 ذاتي</span>{% endif %}
+                                </td>
+                                <td class="py-2 px-2">
+                                    <form action="/delete_attendance/{{ rec.id }}" method="POST"
+                                          onsubmit="return confirm('حذف السجل؟')" class="inline">
+                                        <button class="text-rose-400 text-xs bg-rose-950 px-2 py-1 rounded border border-rose-800">🗑️</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="8" class="text-center text-slate-500 py-8">لا توجد سجلات</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: Chart -->
+        <!-- ============================================== -->
+        <div id="tab-chart" class="tab-content">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3 mb-4">📊 آخر 7 أيام</h2>
+                <canvas id="attendanceChart" height="80"></canvas>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: Notifications -->
+        <!-- ============================================== -->
+        <div id="tab-notify" class="tab-content space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-emerald-400 border-b border-slate-800 pb-3 mb-4">📱 إعدادات إشعارات المالك</h2>
+                <form action="/update_settings" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">رقم واتساب المالك</label>
+                        <input type="text" name="owner_phone" value="{{ settings.owner_phone }}"
+                               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">وقت التقرير اليومي</label>
+                        <input type="time" name="daily_report_time" value="{{ settings.daily_report_time }}"
+                               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">يوم التقرير الأسبوعي</label>
+                        <select name="weekly_report_day"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                            {% for i, name in weekdays.items() %}
+                            <option value="{{ i }}" {% if settings.weekly_report_day|string == i|string %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">وقت التقرير الأسبوعي</label>
+                        <input type="time" name="weekly_report_time" value="{{ settings.weekly_report_time }}"
+                               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm">
+                    </div>
+
+                    <label class="md:col-span-2 flex items-center gap-3 bg-slate-950 p-3 rounded-xl cursor-pointer">
+                        <input type="checkbox" name="whatsapp_enabled" {% if settings.whatsapp_enabled == '1' %}checked{% endif %}
+                               class="w-5 h-5 accent-emerald-500">
+                        <span class="text-sm font-bold">تفعيل إشعارات الواتساب</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-950 p-3 rounded-xl cursor-pointer">
+                        <input type="checkbox" name="notify_daily" {% if settings.notify_daily == '1' %}checked{% endif %}
+                               class="w-5 h-5 accent-emerald-500">
+                        <span class="text-sm">إرسال التقرير اليومي</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 bg-slate-950 p-3 rounded-xl cursor-pointer">
+                        <input type="checkbox" name="notify_weekly" {% if settings.notify_weekly == '1' %}checked{% endif %}
+                               class="w-5 h-5 accent-emerald-500">
+                        <span class="text-sm">إرسال التقرير الأسبوعي</span>
+                    </label>
+
+                    <div class="md:col-span-2">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl">
+                            💾 حفظ الإعدادات
+                        </button>
+                    </div>
+                </form>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800">
+                    <form action="/test_whatsapp" method="POST">
+                        <button class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-xl text-sm">
+                            🧪 اختبار الواتساب
+                        </button>
+                    </form>
+                    <form action="/send_daily_report_now" method="POST">
+                        <button class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-sm">
+                            📤 تقرير يومي الآن
+                        </button>
+                    </form>
+                    <form action="/send_weekly_report_now" method="POST">
+                        <button class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-xl text-sm">
+                            📤 تقرير أسبوعي الآن
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-emerald-400 border-b border-slate-800 pb-3 mb-4">📨 آخر الإشعارات</h2>
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    {% for n in notifications %}
+                    <div class="bg-slate-950 p-3 rounded-xl text-xs">
+                        <div class="flex justify-between items-center gap-2 mb-1 flex-wrap">
+                            <span class="text-blue-300 font-mono">{{ n.phone }}</span>
+                            <span class="px-2 py-0.5 rounded
+                                {% if n.status == 'sent' %}bg-emerald-950 text-emerald-400
+                                {% elif n.status == 'disabled' %}bg-slate-800 text-slate-500
+                                {% else %}bg-rose-950 text-rose-400{% endif %}">
+                                {{ n.status }}
+                            </span>
+                            <span class="text-slate-500">{{ n.created_at }}</span>
+                        </div>
+                        <pre class="text-slate-400 whitespace-pre-wrap text-xs font-sans">{{ n.message }}</pre>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-slate-500 py-4">لا إشعارات بعد</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: Security -->
+        <!-- ============================================== -->
+        <div id="tab-security" class="tab-content space-y-6">
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-amber-400 border-b border-slate-800 pb-3 mb-4">🔑 تغيير كلمة مرور الأدمن</h2>
+                <form action="/change_password" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="password" name="new_password" placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)" required
+                           class="md:col-span-3 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 px-4 rounded-xl text-sm">
+                        🔑 تغيير
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-cyan-400 border-b border-slate-800 pb-3 mb-4">🔐 كلمة مرور صفحة البصمة /</h2>
+                <form action="/admin/change_home_password" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <input type="password" name="new_home_password" placeholder="كلمة المرور الجديدة (4 أحرف على الأقل)" required
+                           class="md:col-span-3 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-xl text-sm">
+                        🔐 تغيير
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-purple-400 border-b border-slate-800 pb-3 mb-4">📜 سجل العمليات (آخر 20)</h2>
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    {% for log in audit_logs %}
+                    <div class="bg-slate-950 p-2 rounded-lg text-xs flex justify-between gap-2 flex-wrap">
+                        <span class="text-purple-300 font-bold">{{ log.action }}</span>
+                        <span class="text-slate-400 flex-1">{{ log.details }}</span>
+                        <span class="text-slate-500 font-mono">{{ log.timestamp }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB: License -->
+        <!-- ============================================== -->
+        <div id="tab-license" class="tab-content space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-amber-400 border-b border-slate-800 pb-3 mb-4">🔑 حالة الترخيص</h2>
+
+                <div class="bg-slate-950 rounded-2xl p-5 mb-4">
+                    <div class="text-center">
+                        {% if license_status == 'valid' %}
+                        <div class="text-5xl mb-3">✅</div>
+                        <p class="text-emerald-400 font-bold text-lg">الترخيص ساري</p>
+                        <p class="text-xs text-slate-400 mt-2">{{ license_message }}</p>
+                        {% elif license_status == 'warning' %}
+                        <div class="text-5xl mb-3">⚠️</div>
+                        <p class="text-amber-400 font-bold text-lg">قارب على الانتهاء</p>
+                        <p class="text-xs text-amber-300 mt-2">{{ license_message }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 rounded-2xl p-5 mb-4">
+                    <p class="text-xs text-slate-400 mb-2">📟 بصمة هذا الجهاز:</p>
+                    <div class="flex items-center gap-2">
+                        <input type="text" readonly value="{{ machine_id }}" id="machine-id"
+                               class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-center text-lg font-mono font-bold text-cyan-400 tracking-widest">
+                        <button onclick="copyMachineId()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl text-sm font-bold">
+                            📋
+                        </button>
+                    </div>
+                </div>
+
+                <a href="https://wa.me/213669659661?text={{ ('السلام عليكم، بصمة الجهاز: ' ~ machine_id)|urlencode }}"
+                   target="_blank"
+                   class="block w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl text-center transition">
+                    📱 تواصل مع المطور للتجديد
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-slate-500 text-xs">
+        <p>🏥 صيدلية المقري شنن عثمان - نظام الحضور © 2026</p>
+        {% if server_ip %}
+        <p class="mt-1">🌐 من الهاتف: <span class="font-mono text-emerald-400">http://{{ server_ip }}:8000</span></p>
+        {% endif %}
+        {% if license_status == 'valid' %}
+        <p class="mt-1 text-emerald-400">✅ الترخيص: {{ license_days }} يوم متبقٍ</p>
+        {% elif license_status == 'warning' %}
+        <p class="mt-1 text-amber-400">⚠️ الترخيص ينتهي خلال {{ license_days }} يوم</p>
+        {% endif %}
+    </footer>
+
+    <script>
+        function showTab(event, id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+
+            if (id === 'tab-chart') {
+                setTimeout(loadChart, 100);
+            }
+        }
+
+        function updateLiveStats() {
+            fetch('/api/live_stats')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'success') {
+                        document.getElementById('admin-present-count').innerText = d.present_count;
+                        document.getElementById('admin-late-count').innerText = d.late_count;
+                        document.getElementById('admin-absent-count').innerText = d.absent_count;
+                    }
+                })
+                .catch(() => {});
+        }
+        setInterval(updateLiveStats, 5000);
+
+        let chartInitialized = false;
+        function loadChart() {
+            if (chartInitialized) return;
+            chartInitialized = true;
+
+            fetch('/api/chart_data')
+                .then(r => r.json())
+                .then(data => {
+                    const ctx = document.getElementById('attendanceChart');
+                    if (!ctx) return;
+
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels,
+                            datasets: [
+                                { label: 'الحضور', data: data.present, backgroundColor: '#10b981' },
+                                { label: 'التأخير', data: data.late, backgroundColor: '#f59e0b' }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { labels: { color: '#cbd5e1' } }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                                y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' }, beginAtZero: true }
+                            }
+                        }
+                    });
+                })
+                .catch(err => console.error('Chart error:', err));
+        }
+
+        function copyMachineId() {
+            const input = document.getElementById('machine-id');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            event.target.innerText = '✅';
+            setTimeout(() => event.target.innerText = '📋', 1500);
+        }
+    </script>
+</body>
+</html>

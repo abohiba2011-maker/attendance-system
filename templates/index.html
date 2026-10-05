@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الحضور والانصراف - صيدلية المقري شنن عثمان</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow-x: hidden;
+        }
+        .wisdom-container {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 12px 20px;
+            border-top: 2px solid #3b82f6;
+            text-align: center;
+            min-height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .wisdom-text {
+            transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+        }
+        .wisdom-text.fade-out {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 16px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="text-slate-100">
+
+    <!-- Header -->
+    <header class="w-full bg-slate-900/85 backdrop-blur-md shadow-lg border-b border-blue-500/30 py-4 px-6">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/50 text-2xl">
+                    💊
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-wide text-white">صيدلية المقري شنن عثمان</h1>
+                    <p class="text-xs text-blue-300 font-medium">نظام إدارة الحضور والانصراف المطور</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="/admin/manage_attendance" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-xl text-xs font-bold transition">
+                  <span>🗂️ إدارة الحركات</span>  
+                </a>
+                <a href="/kiosk" target="_blank" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow transition flex items-center gap-1">
+                    <span>📺 العرض</span>
+                </a>             
+                <a href="/admin" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold shadow transition flex items-center gap-1">
+                    <span>👤 الأدمن</span>
+                </a>
+                {% if is_admin_device %}
+                <a href="/lock_home" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-bold shadow transition flex items-center gap-1">
+                    <span>🔒 قفل</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Main -->
+    <main class="w-full max-w-3xl mx-auto p-4 my-auto">
+        <div class="bg-slate-900/90 backdrop-blur-xl border border-slate-700/60 shadow-2xl rounded-3xl p-6 md:p-8 space-y-6">
+
+            <div class="text-center space-y-1">
+                <h2 class="text-2xl md:text-3xl font-extrabold text-blue-400">تسجيل الحضور والانصراف</h2>
+                <p class="text-sm text-slate-400">مرّر بطاقة QR أو أدخل الكود اليومي (4 أرقام)</p>
+            </div>
+
+            <!-- Live Clock -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-center shadow-inner">
+                <div id="live-clock" class="text-3xl md:text-4xl font-black text-cyan-400 tracking-wider">--:--:--</div>
+                <div id="live-date" class="text-xs md:text-sm text-slate-400 mt-1">جاري التحميل...</div>
+            </div>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">👥 الحاضرون اليوم</span>
+                    <span id="present-count-display" class="text-2xl font-bold text-emerald-400">{{ present_count }}</span>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">⏰ المتأخرون اليوم</span>
+                    <span id="late-count-display" class="text-2xl font-bold text-amber-400">{{ late_count }}</span>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="space-y-3">
+                <div class="relative">
+                    <input type="text" id="qr-input" autofocus autocomplete="off"
+                        class="w-full bg-slate-950 border-2 border-blue-500/50 focus:border-blue-500 rounded-2xl px-5 py-5 text-center text-3xl font-mono font-black tracking-widest text-white placeholder-slate-600 shadow-inner outline-none transition"
+                        placeholder="0000">
+                </div>
+
+                <p class="text-center text-xs text-slate-500">
+                    💡 أدخل <strong>الكود اليومي</strong> (4 أرقام) أو <strong>QR</strong>
+                </p>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onclick="submitAction('in')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2">
+                        <span>📥 حضور</span>
+                    </button>
+                    <button onclick="openLeaveModal()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2">
+                        <span>🚪 انصراف بسبب</span>
+                    </button>
+                    <button onclick="submitAction('out')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-3.5 px-4 rounded-xl shadow transition flex items-center justify-center gap-2">
+                        <span>📤 انصراف نهائي</span>
+                    </button>
+                </div>
+
+                <button onclick="submitAction('auto')" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2">
+                    <span>⚡ تسجيل تلقائي (حسب الحالة)</span>
+                </button>
+            </div>
+
+            <!-- Alert -->
+            <div id="alert-box" class="hidden p-4 rounded-xl text-center font-bold text-sm transition-all duration-300"></div>
+
+        </div>
+    </main>
+
+    <!-- Wisdom Bar -->
+    <footer class="w-full mt-4">
+        <div class="wisdom-container shadow-lg">
+            <div id="wisdom-display" class="wisdom-text text-blue-200 font-semibold text-sm md:text-base">
+                💡 حكمة اليوم: خير الأمور أوسطها، وأفضل الأعمال أدومها وإن قل.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal: Leave Reasons -->
+    <div id="leave-modal" class="modal-overlay">
+        <div class="modal-content bg-slate-900 border-2 border-amber-500/50 rounded-3xl p-6 max-w-lg w-full shadow-2xl">
+            <div class="text-center mb-5">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-600 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/50 mb-2">
+                    🚪
+                </div>
+                <h3 class="text-2xl font-black text-amber-400">اختر سبب الانصراف</h3>
+                <p class="text-sm text-slate-400 mt-1">سيتم تسجيل انصرافك مؤقتاً حتى العودة</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                {% for r in leave_reasons %}
+                <button onclick="submitLeave({{ r.id }}, '{{ r.reason_name }}')"
+                    class="bg-slate-800 hover:bg-amber-600 border-2 border-slate-700 hover:border-amber-400 rounded-2xl p-4 text-center transition transform hover:scale-105">
+                    <div class="text-3xl mb-1">{{ r.icon }}</div>
+                    <div class="font-bold text-sm">{{ r.reason_name }}</div>
+                </button>
+                {% else %}
+                <p class="col-span-2 text-center text-slate-500 py-4">لا توجد أسباب متاحة</p>
+                {% endfor %}
+            </div>
+
+            <button onclick="closeLeaveModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl transition">
+                ✖ إلغاء
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const displayHours = String(hours % 12 || 12).padStart(2, '0');
+
+            document.getElementById('live-clock').innerText = `${displayHours}:${minutes}:${seconds} ${hours >= 12 ? 'مساءً' : 'صباحاً'}`;
+
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('live-date').innerText = now.toLocaleDateString('ar-DZ', options);
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Wisdom Rotation
+        const wisdoms = [
+            "💡 حكمة اليوم: خير الأمور أوسطها، وأفضل الأعمال أدومها وإن قل.",
+            "🌿 الصحة تاج على رؤوس الأصحاء لا يراه إلا المرضى.",
+            "⭐ العمل بروح الفريق هو سر النجاح والاستمرارية.",
+            "🎯 الدقة والأمانة هما أساس العمل الصيدلي الناجح.",
+            "🕒 قيمة الوقت تتجلى في سرعة إنجاز المهام."
+        ];
+        let wisdomIdx = 0;
+        function rotateWisdom() {
+            const el = document.getElementById('wisdom-display');
+            if (!el) return;
+            el.classList.add('fade-out');
+            setTimeout(() => {
+                wisdomIdx = (wisdomIdx + 1) % wisdoms.length;
+                el.innerText = wisdoms[wisdomIdx];
+                el.classList.remove('fade-out');
+            }, 800);
+        }
+        setInterval(rotateWisdom, 15 * 60 * 1000);
+
+        // Elements
+        const qrInput = document.getElementById('qr-input');
+        const alertBox = document.getElementById('alert-box');
+        const leaveModal = document.getElementById('leave-modal');
+
+        document.addEventListener('click', (e) => {
+            if (!leaveModal.classList.contains('active')) {
+                if (document.activeElement !== qrInput) qrInput.focus();
+            }
+        });
+
+        qrInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') submitAction('auto');
+        });
+
+        // Leave Modal
+        function openLeaveModal() {
+            const code = qrInput.value.trim();
+            if (!code) {
+                showAlert('⚠️ أدخل الكود أولاً ثم اختر السبب', 'warning');
+                return;
+            }
+            leaveModal.classList.add('active');
+        }
+
+        function closeLeaveModal() {
+            leaveModal.classList.remove('active');
+            qrInput.focus();
+        }
+
+        leaveModal.addEventListener('click', (e) => {
+            if (e.target === leaveModal) closeLeaveModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && leaveModal.classList.contains('active')) {
+                closeLeaveModal();
+            }
+        });
+
+        function submitLeave(reasonId, reasonName) {
+            const code = qrInput.value.trim();
+            if (!code) {
+                showAlert('⚠️ أدخل الكود أولاً', 'warning');
+                closeLeaveModal();
+                return;
+            }
+            closeLeaveModal();
+            sendRequest(code, 'leave', reasonId);
+        }
+
+        // Fingerprint
+        async function getDeviceFingerprint() {
+            const components = [
+                navigator.userAgent || '',
+                navigator.language || '',
+                navigator.platform || '',
+                screen.width + 'x' + screen.height,
+                screen.colorDepth || '',
+                window.devicePixelRatio || '',
+                new Date().getTimezoneOffset(),
+                navigator.hardwareConcurrency || '',
+                navigator.maxTouchPoints || ''
+            ];
+
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 200;
+                canvas.height = 50;
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#f60';
+                ctx.fillRect(125, 1, 62, 20);
+                ctx.fillStyle = '#069';
+                ctx.fillText('Fingerprint', 2, 15);
+                components.push(canvas.toDataURL());
+            } catch (e) {
+                components.push('no-canvas');
+            }
+
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl');
+                if (gl) {
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) {
+                        components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '');
+                        components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '');
+                    }
+                }
+            } catch (e) {
+                components.push('no-webgl');
+            }
+
+            const data = components.join('|');
+            const encoder = new TextEncoder();
+
+            if (crypto.subtle) {
+                const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } else {
+                let hash = 0;
+                for (let i = 0; i < data.length; i++) {
+                    hash = ((hash << 5) - hash) + data.charCodeAt(i);
+                    hash = hash & hash;
+                }
+                return 'simple_' + Math.abs(hash).toString(36);
+            }
+        }
+
+        // Submit
+        async function submitAction(actionType) {
+            const code = qrInput.value.trim();
+            if (!code) {
+                showAlert('⚠️ الرجاء إدخال الكود أو قراءة الرمز!', 'error');
+                return;
+            }
+
+            let fingerprint = '';
+            try {
+                fingerprint = await getDeviceFingerprint();
+            } catch (e) {
+                fingerprint = '';
+            }
+
+            sendRequest(code, actionType, null, fingerprint);
+        }
+
+        function sendRequest(code, action, reasonId, fingerprint) {
+            const body = { qr_code: code, action: action };
+            if (reasonId) body.leave_reason_id = reasonId;
+            if (fingerprint) body.fingerprint = fingerprint;
+
+            fetch('/record_attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    if (data.present_count !== undefined)
+                        document.getElementById('present-count-display').innerText = data.present_count;
+                    if (data.late_count !== undefined)
+                        document.getElementById('late-count-display').innerText = data.late_count;
+                } else {
+                    showAlert(data.message, 'error');
+                }
+                qrInput.value = '';
+                qrInput.focus();
+            })
+            .catch(() => {
+                showAlert('❌ خطأ في الاتصال بالخادم!', 'error');
+                qrInput.value = '';
+                qrInput.focus();
+            });
+        }
+
+        function showAlert(msg, type) {
+            alertBox.classList.remove('hidden', 'bg-emerald-600', 'bg-rose-600', 'bg-amber-600', 'text-white');
+            if (type === 'success') {
+                alertBox.classList.add('bg-emerald-600', 'text-white');
+            } else if (type === 'warning') {
+                alertBox.classList.add('bg-amber-600', 'text-white');
+            } else {
+                alertBox.classList.add('bg-rose-600', 'text-white');
+            }
+            alertBox.innerText = msg;
+            alertBox.classList.remove('hidden');
+
+            clearTimeout(window._alertTimeout);
+            window._alertTimeout = setTimeout(() => {
+                alertBox.classList.add('hidden');
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

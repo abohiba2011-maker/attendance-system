@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة ورديات {{ emp.first_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #f1f5f9; min-height: 100vh; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100">
+
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 shadow-md">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-xl">⚙️</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">إدارة الورديات والجدول الأسبوعي</h1>
+                    <p class="text-xs text-purple-400">{{ emp.first_name }} {{ emp.last_name or '' }} ({{ emp.code }})</p>
+                </div>
+            </div>
+            <a href="/admin" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-700 transition">← العودة</a>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-6">
+        <form method="POST" class="space-y-6">
+
+            <!-- الورديات -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-2 mb-4">🕐 الورديات</h2>
+
+                {% set shift_names = ['صباحية', 'مسائية'] %}
+                {% set shift_colors = {'صباحية': 'emerald', 'مسائية': 'purple'} %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for sname in shift_names %}
+                    {% set s = shifts.get(sname) %}
+                    {% set is_active = s is not none %}
+                    <div class="bg-slate-950 border-2 {% if is_active %}border-{{ shift_colors[sname] }}-600{% else %}border-slate-800{% endif %} rounded-2xl p-4 space-y-3">
+
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold
+                                {% if sname == 'صباحية' %}text-emerald-400{% else %}text-purple-400{% endif %}">
+                                {% if sname == 'صباحية' %}🌅{% else %}🌙{% endif %} الوردية {{ sname }}
+                            </h3>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" name="{{ sname }}_enabled" {% if is_active %}checked{% endif %}
+                                    class="w-5 h-5 accent-{{ shift_colors[sname] }}-500">
+                                <span class="text-xs">مفعّلة</span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">البداية</label>
+                                <input type="time" name="{{ sname }}_start"
+                                    value="{{ s.shift_start if s else ('08:00' if sname == 'صباحية' else '16:00') }}"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">النهاية</label>
+                                <input type="time" name="{{ sname }}_end"
+                                    value="{{ s.shift_end if s else ('16:00' if sname == 'صباحية' else '23:00') }}"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">السماحية (د)</label>
+                                <input type="number" name="{{ sname }}_grace"
+                                    value="{{ s.grace_period if s else 15 }}"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-white text-sm">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- الجدول الأسبوعي -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+                <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-2 mb-4">📅 الجدول الأسبوعي</h2>
+
+                <div class="space-y-2">
+                    {% for dow in range(7) %}
+                    {% set day = schedule.get(dow) %}
+                    {% set is_rest = day and day.is_rest_day %}
+                    {% set shift_name = day.shift_name if day and not is_rest else '' %}
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-950 p-3 rounded-xl items-center">
+                        <div class="font-bold text-blue-300">{{ weekdays[dow] }}</div>
+
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="day_{{ dow }}_rest" {% if is_rest %}checked{% endif %}
+                                class="w-5 h-5 accent-rose-500">
+                            <span class="text-sm text-rose-300">يوم راحة</span>
+                        </label>
+
+                        <select name="day_{{ dow }}_shift" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                            <option value="">— بدون —</option>
+                            <option value="صباحية" {% if shift_name == 'صباحية' %}selected{% endif %}>🌅 صباحية</option>
+                            <option value="مسائية" {% if shift_name == 'مسائية' %}selected{% endif %}>🌙 مسائية</option>
+                        </select>
+
+                        <div class="text-xs text-slate-500">
+                            {% if is_rest %}🚫 راحة{% elif shift_name %}{{ shift_name }}{% else %}—{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <p class="text-xs text-slate-500 mt-3">💡 ملاحظة: إذا اخترت "يوم راحة"، سيتم تجاهل الوردية لذلك اليوم</p>
+            </div>
+
+            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-lg transition">
+                💾 حفظ الورديات والجدول
+            </button>
+        </form>
+    </main>
+
+</body>
+</html>

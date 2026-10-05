@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الحضور</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Cairo', sans-serif; background: linear-gradient(135deg, #059669, #065f46); min-height: 100vh; }</style>
+</head>
+<body class="text-white p-4 flex items-center justify-center min-h-screen">
+
+    <div class="max-w-md w-full">
+
+        <div class="text-center mb-6">
+            <div class="w-20 h-20 mx-auto rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-4xl mb-3">
+                ✅
+            </div>
+            <h1 class="text-3xl font-black">تم التعرف على الباب</h1>
+            <p class="text-emerald-100 text-sm mt-1">الآن أدخل بياناتك</p>
+        </div>
+
+        {% if error %}
+        <div class="bg-red-900/50 border-2 border-red-500 rounded-2xl p-3 text-center mb-4">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/scan/{{ token }}/submit"
+              class="bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+
+            <div>
+                <label class="block text-slate-700 font-bold mb-2 text-sm">🔢 كود الموظف</label>
+                <input type="text" name="emp_code" required autofocus
+                       inputmode="numeric" pattern="[0-9]*"
+                       placeholder="مثال: 1000"
+                       class="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl px-4 py-4 text-center text-2xl font-black tracking-widest outline-none text-slate-800">
+            </div>
+
+            <div>
+                <label class="block text-slate-700 font-bold mb-2 text-sm">🔐 PIN (إن كان مفعلاً)</label>
+                <input type="password" name="pin"
+                       inputmode="numeric" pattern="[0-9]*" maxlength="6"
+                       placeholder="••••"
+                       class="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-500 rounded-2xl px-4 py-4 text-center text-2xl font-black tracking-widest outline-none text-slate-800">
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl text-lg transition">
+                ✅ تسجيل الحضور
+            </button>
+        </form>
+
+        <div class="text-center mt-4 text-emerald-100 text-xs">
+            <p>🏥 صيدلية المقري شنن عثمان</p>
+        </div>
+    </div>
+
+</body>
+</html>

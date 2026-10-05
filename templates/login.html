@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - لوحة الأدمن</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); min-height: 100vh; }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4 text-slate-100">
+
+    <div class="w-full max-w-md">
+        <div class="bg-slate-900/90 backdrop-blur-xl border border-slate-700/60 shadow-2xl rounded-3xl p-8 space-y-6">
+
+            <div class="text-center space-y-2">
+                <div class="w-20 h-20 mx-auto rounded-2xl bg-blue-600 flex items-center justify-center text-4xl shadow-lg shadow-blue-500/50">
+                    🔐
+                </div>
+                <h1 class="text-2xl font-black text-white">لوحة تحكم الأدمن</h1>
+                <p class="text-sm text-blue-300">صيدلية المقري شنن عثمان</p>
+            </div>
+
+            {% if error %}
+            <div class="bg-rose-600/20 border border-rose-500/50 text-rose-300 px-4 py-3 rounded-xl text-center text-sm font-bold">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/login" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2 font-bold">اسم المستخدم</label>
+                    <input type="text" name="username" required autofocus
+                        class="w-full bg-slate-950 border-2 border-slate-700 focus:border-blue-500 rounded-xl px-4 py-3 text-white outline-none transition"
+                        placeholder="admin">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2 font-bold">كلمة المرور</label>
+                    <input type="password" name="password" required
+                        class="w-full bg-slate-950 border-2 border-slate-700 focus:border-blue-500 rounded-xl px-4 py-3 text-white outline-none transition"
+                        placeholder="••••••••">
+                </div>
+                <button type="submit"
+                    class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-3 rounded-xl shadow-lg transition">
+                    🚀 تسجيل الدخول
+                </button>
+            </form>
+
+            <div class="text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+                <p>الافتراضي: <span class="text-blue-400 font-mono">admin / admin123</span></p>
+                <p class="mt-1">⚠️ غيّرها فوراً من لوحة التحكم</p>
+            </div>
+
+            <div class="text-center">
+                <a href="/" class="text-xs text-slate-400 hover:text-blue-400">← العودة للرئيسية</a>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

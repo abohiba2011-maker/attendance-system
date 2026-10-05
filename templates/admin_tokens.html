@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الروابط الشخصية للموظفين</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Cairo', sans-serif; background: #0f172a; min-height: 100vh; }</style>
+</head>
+<body class="text-slate-100">
+
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-xl">🔗</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">الروابط الشخصية</h1>
+                    <p class="text-xs text-emerald-400">رابط سري لكل موظف</p>
+                </div>
+            </div>
+            <a href="/admin" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-700">
+                ← العودة للوحة
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+        <div class="bg-blue-900/30 border border-blue-700 rounded-2xl p-5">
+            <h3 class="font-bold text-blue-300 mb-2">💡 كيف تعمل؟</h3>
+            <ul class="text-sm text-blue-100 space-y-1">
+                <li>✅ كل موظف له <strong>رابط سري فريد</strong></li>
+                <li>✅ يفتحه من هاتفه → يرى QR يتغير يومياً</li>
+                <li>✅ QR يعمل فقط <strong>ليومه</strong></li>
+                <li>✅ إذا تسرب الرابط → اضغط "🔄 تجديد"</li>
+                <li>✅ يمكن <strong>ربط الرابط بالهاتف</strong> (IP Lock)</li>
+            </ul>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <h2 class="text-lg font-bold text-amber-400 border-b border-slate-800 pb-3 mb-4">🔒 إعدادات الأمان</h2>
+            <form action="/admin/update_token_settings" method="POST" class="space-y-3">
+                <label class="flex items-center gap-3 bg-slate-950 p-3 rounded-xl cursor-pointer">
+                    <input type="checkbox" name="lock_ip_to_token"
+                           {% if settings.lock_ip_to_token == '1' %}checked{% endif %}
+                           class="w-5 h-5 accent-emerald-500">
+                    <div>
+                        <div class="font-bold">🔒 ربط الرابط بالهاتف (IP Lock)</div>
+                        <div class="text-xs text-slate-400">يمنع مشاركة الرابط مع الآخرين</div>
+                    </div>
+                </label>
+                <label class="flex items-center gap-3 bg-slate-950 p-3 rounded-xl cursor-pointer">
+                    <input type="checkbox" name="pin_required"
+                           {% if settings.pin_required == '1' %}checked{% endif %}
+                           class="w-5 h-5 accent-emerald-500">
+                    <div>
+                        <div class="font-bold">🔐 تفعيل PIN عند الفتح</div>
+                        <div class="text-xs text-slate-400">طبقة إضافية من الحماية</div>
+                    </div>
+                </label>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded-xl">
+                    💾 حفظ الإعدادات
+                </button>
+            </form>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="px-4 py-3 rounded-xl text-center font-bold text-sm {% if category == 'success' %}bg-emerald-600{% else %}bg-rose-600{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <h2 class="text-lg font-bold text-emerald-400 border-b border-slate-800 pb-3 mb-4">
+                👥 الموظفون ({{ employees|length }})
+            </h2>
+
+            <div class="space-y-3">
+                {% for emp in employees %}
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+
+                        <div class="flex items-center gap-3">
+                            {% if emp.photo %}
+                            <img src="{{ url_for('static', filename='uploads/' ~ emp.photo) }}"
+                                 class="w-12 h-12 rounded-full object-cover border-2 border-emerald-500">
+                            {% else %}
+                            <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl">👤</div>
+                            {% endif %}
+                            <div>
+                                <div class="font-bold text-white">{{ emp.first_name }} {{ emp.last_name or '' }}</div>
+                                <div class="text-xs text-slate-400">كود: {{ emp.code }}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-[300px]">
+                            <div class="bg-slate-900 border border-slate-700 rounded-lg p-2 flex items-center gap-2">
+                                <input type="text" readonly
+                                       value="{{ base_url }}/my/{{ emp.personal_token }}"
+                                       id="url_{{ emp.id }}"
+                                       class="flex-1 bg-transparent text-xs text-emerald-300 font-mono outline-none px-2">
+                                <button onclick="copyUrl({{ emp.id }})"
+                                        class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg">
+                                    📋 نسخ
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 flex-wrap">
+                            {% if emp.locked_ip %}
+                            <span class="bg-amber-900/50 text-amber-300 border border-amber-700 text-xs px-2 py-1 rounded">
+                                🔒 {{ emp.locked_ip }}
+                            </span>
+                            {% else %}
+                            <span class="bg-slate-800 text-slate-400 text-xs px-2 py-1 rounded">
+                                🌐 مفتوح
+                            </span>
+                            {% endif %}
+
+                            {% if emp.phone %}
+                            <a href="https://wa.me/{{ emp.phone|replace('+','')|replace(' ','') }}?text={{ ('رابطك الشخصي لتسجيل الحضور:\n' ~ base_url ~ '/my/' ~ emp.personal_token ~ '\n\nاحفظه في المفضلة')|urlencode }}"
+                               target="_blank"
+                               class="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1.5 rounded-lg">
+                                📱 واتساب
+                            </a>
+                            {% endif %}
+
+                            {% if emp.locked_ip %}
+                            <form action="/admin/unlock_ip/{{ emp.id }}" method="POST" class="inline">
+                                <button class="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded-lg">
+                                    🔓 فك
+                                </button>
+                            </form>
+                            {% else %}
+                            <form action="/admin/lock_ip/{{ emp.id }}" method="POST" class="inline"
+                                  onsubmit="return confirm('افتح الرابط من هاتف الموظف أولاً ثم اضغط موافق لربطه بـ IP الحالي')">
+                                <button class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded-lg">
+                                    🔒 اربط IP
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            <form action="/admin/regenerate_token/{{ emp.id }}" method="POST" class="inline"
+                                  onsubmit="return confirm('سيتم إلغاء الرابط القديم. متابعة؟')">
+                                <button class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-lg">
+                                    🔄 تجديد
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-center text-slate-500 py-8">لا يوجد موظفون</p>
+                {% endfor %}
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function copyUrl(id) {
+            const input = document.getElementById('url_' + id);
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+
+            const btn = event.target;
+            const original = btn.innerText;
+            btn.innerText = '✅ تم';
+            btn.classList.add('bg-emerald-700');
+            setTimeout(() => {
+                btn.innerText = original;
+                btn.classList.remove('bg-emerald-700');
+            }, 1500);
+        }
+    </script>
+</body>
+</html>

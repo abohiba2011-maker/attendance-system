@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖥️ الأجهزة المسموحة - صيدلية المقري</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Cairo', sans-serif; background: #0f172a; min-height: 100vh; }</style>
+</head>
+<body class="text-slate-100">
+
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 sticky top-0 z-40">
+        <div class="max-w-3xl mx-auto flex justify-between items-center flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-xl">🖥️</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">الأجهزة المسموحة</h1>
+                    <p class="text-xs text-blue-400">أجهزة تفتح / بدون كلمة مرور</p>
+                </div>
+            </div>
+            <a href="/admin" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-700">
+                ← العودة للوحة
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- Info -->
+        <div class="bg-blue-900/30 border border-blue-700 rounded-2xl p-5">
+            <h3 class="font-bold text-blue-300 mb-2">💡 كيف يعمل؟</h3>
+            <ul class="text-sm text-blue-100 space-y-1">
+                <li>✅ الأجهزة المُدرجة تفتح <code class="bg-blue-950 px-2 py-0.5 rounded">/</code> مباشرة</li>
+                <li>✅ أضف IP <strong>جهاز الصيدلية الثابت</strong></li>
+                <li>🔐 هاتف الأدمن → يحتاج كلمة مرور</li>
+                <li>❌ هواتف الموظفين → لا يمكنها فتح <code class="bg-blue-950 px-2 py-0.5 rounded">/</code></li>
+            </ul>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="px-4 py-3 rounded-xl text-center font-bold text-sm {% if category == 'success' %}bg-emerald-600{% else %}bg-rose-600{% endif %}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Current Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+                <p class="text-xs text-slate-400 mb-1">🌐 IP السيرفر:</p>
+                <p class="text-lg font-mono font-bold text-emerald-400">{{ server_ip }}</p>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow">
+                <p class="text-xs text-slate-400 mb-1">📱 IP جهازك الحالي:</p>
+                <p class="text-lg font-mono font-bold text-cyan-400">{{ my_ip }}</p>
+                <button onclick="copyMyIp()" class="mt-2 text-xs bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded">
+                    📋 نسخ للاستخدام
+                </button>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <h2 class="text-lg font-bold text-blue-400 border-b border-slate-800 pb-3 mb-4">✏️ تعديل القائمة</h2>
+            <form method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">
+                        IPs المسموحة (IP واحد في كل سطر):
+                    </label>
+                    <textarea name="ips" rows="8"
+                              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:border-blue-500 outline-none">{% for ip in ips %}{{ ip }}
+{% endfor %}</textarea>
+                </div>
+                <button type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition">
+                    💾 حفظ القائمة
+                </button>
+            </form>
+        </div>
+
+        <!-- Current IPs -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow">
+            <h2 class="text-lg font-bold text-emerald-400 border-b border-slate-800 pb-3 mb-4">
+                ✅ القائمة الحالية ({{ ips|length }})
+            </h2>
+            <div class="space-y-2">
+                {% for ip in ips %}
+                <div class="bg-slate-950 rounded-xl p-3 flex items-center justify-between">
+                    <span class="font-mono text-emerald-400">{{ ip }}</span>
+                    {% if ip in ['127.0.0.1', 'localhost'] %}
+                    <span class="text-xs text-slate-500">(افتراضي)</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function copyMyIp() {
+            const ip = "{{ my_ip }}";
+            navigator.clipboard.writeText(ip).then(() => {
+                event.target.innerText = '✅ تم النسخ';
+                setTimeout(() => event.target.innerText = '📋 نسخ للاستخدام', 1500);
+            });
+        }
+    </script>
+
+</body>
+</html>

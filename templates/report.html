@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقارير الحضور والانصراف - الصيدلية</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .leave-justified {
+            display: inline-block;
+            margin: 2px;
+            padding: 3px 8px;
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        .leave-unjustified {
+            display: inline-block;
+            margin: 2px;
+            padding: 3px 8px;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+        details summary {
+            cursor: pointer;
+            color: #2563eb;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .report-nav .btn.active {
+            background-color: #0d9488;
+            color: white;
+            border-color: #0d9488;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            .card { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body class="py-4">
+
+<div class="container-fluid px-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print flex-wrap gap-2">
+        <div>
+            <a href="/admin" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-arrow-right me-1"></i> العودة
+            </a>
+        </div>
+        <div>
+            <a href="/export_excel?emp_code={{ selected_emp }}&start_date={{ start_date }}&end_date={{ end_date }}"
+               class="btn btn-success me-2">
+                <i class="fa-solid fa-file-excel me-1"></i> Excel
+            </a>
+            <a href="/export_pdf?emp_code={{ selected_emp }}&start_date={{ start_date }}&end_date={{ end_date }}"
+               class="btn btn-danger me-2">
+                <i class="fa-solid fa-file-pdf me-1"></i> PDF
+            </a>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="fa-solid fa-print me-1"></i> طباعة
+            </button>
+        </div>
+    </div>
+
+    <div class="card p-3 mb-4 no-print">
+        <div class="report-nav d-flex flex-wrap gap-2">
+            <a href="/report?emp_code={{ selected_emp }}&start_date={{ start_date }}&end_date={{ end_date }}"
+               class="btn btn-outline-secondary active">
+                <i class="fa-solid fa-list"></i> التقرير التفصيلي
+            </a>
+            <a href="/report/summary" class="btn btn-outline-success">
+                <i class="fa-solid fa-chart-bar"></i> التقرير المجمّع
+            </a>
+            <a href="/report/balance" class="btn btn-outline-info">
+                <i class="fa-solid fa-calendar-check"></i> رصيد الإجازات
+            </a>
+        </div>
+    </div>
+
+    <div class="card p-4 mb-4 no-print">
+        <h5 class="mb-3">
+            <i class="fa-solid fa-filter text-primary me-2"></i>
+            تصفية التقارير
+        </h5>
+        <form method="GET" action="/report" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold">الموظف</label>
+                <select class="form-select" name="emp_code">
+                    <option value="all" {% if selected_emp == 'all' %}selected{% endif %}>جميع الموظفين</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.code }}" {% if selected_emp == emp.code %}selected{% endif %}>
+                        {{ emp.first_name }} {{ emp.last_name or '' }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">من تاريخ</label>
+                <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">إلى تاريخ</label>
+                <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fa-solid fa-search me-1"></i> عرض
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card p-4">
+        <div class="text-center mb-4">
+            <h3>
+                <i class="fa-solid fa-pills text-success"></i>
+                تقرير الحضور والانصراف التفصيلي
+            </h3>
+            <p class="text-muted mb-1">
+                الفترة: من <strong>{{ start_date }}</strong> إلى <strong>{{ end_date }}</strong>
+            </p>
+            <small class="text-secondary">تاريخ التقرير: {{ print_date }}</small>
+        </div>
+
+        <div class="row g-3 mb-4 text-center">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <span class="text-muted small d-block">إجمالي السجلات</span>
+                    <h4>{{ total_records }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <span class="text-muted small d-block">إجمالي ساعات العمل</span>
+                    <h4>{{ total_work_hours }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <span class="text-muted small d-block">إجمالي دقائق التأخير</span>
+                    <h4 class="text-danger">{{ total_late_mins }} دقيقة</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle text-center" style="font-size: 13px;">
+                <thead class="table-dark">
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>الكود</th>
+                        <th>الاسم</th>
+                        <th>الوردية</th>
+                        <th>الحضور</th>
+                        <th>الانصراف</th>
+                        <th>الفواصل</th>
+                        <th>صافي العمل</th>
+                        <th>التأخير</th>
+                        <th>التفاصيل</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ r.date }}</td>
+                        <td><code>{{ r.emp_code }}</code></td>
+                        <td class="fw-bold">{{ r.name }}</td>
+                        <td><span class="badge bg-secondary">{{ r.shift }}</span></td>
+                        <td class="text-success">{{ r.check_in }}</td>
+                        <td class="text-danger">{{ r.check_out }}</td>
+                        <td>
+                            {% if r.leaves_count > 0 %}
+                                {% if r.justified_count > 0 %}
+                                <span class="badge bg-success">{{ r.justified_count }} مبرر</span>
+                                {% endif %}
+                                {% if r.unjustified_count > 0 %}
+                                <span class="badge bg-danger">{{ r.unjustified_count }} غير مبرر</span>
+                                {% endif %}
+                                <div class="small text-muted mt-1">{{ r.leaves_total_min }} دقيقة</div>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ r.work_hours }}</strong></td>
+                        <td>
+                            {% if r.late_minutes > 0 %}
+                            <span class="badge bg-danger">{{ r.late_minutes }} د</span>
+                            {% else %}
+                            <span class="text-success">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r.leaves_count > 0 or r.events|length > 2 %}
+                            <details>
+                                <summary>عرض</summary>
+                                <div style="text-align: right; margin-top: 5px;">
+                                    {% for l in r.leaves %}
+                                    <div class="{% if l.is_justified %}leave-justified{% else %}leave-unjustified{% endif %}">
+                                        {{ l.reason }}: {{ l.duration }} د ({{ l.time }})
+                                        {% if l.is_justified %}✅{% else %}⚠️{% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-inbox fa-3x mb-3 d-block"></i>
+                            لا توجد سجلات مطابقة للفترة المحددة.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-center mt-3 text-muted small no-print">
+            <span class="badge bg-success me-1">✅ مبرر</span>
+            <span class="badge bg-danger">⚠️ غير مبرر</span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

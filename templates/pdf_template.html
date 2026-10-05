@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تقرير الحضور PDF</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        body {
+            font-family: 'DejaVu Sans', 'Segoe UI', Tahoma, Arial, sans-serif;
+            direction: rtl;
+            color: #1f2937;
+            font-size: 11px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #0d9488;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #0d9488;
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 3px 0;
+            color: #6b7280;
+        }
+        .stats-grid {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            display: table-cell;
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+            width: 25%;
+        }
+        .stat-box .label {
+            color: #6b7280;
+            font-size: 10px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .stat-box .value {
+            color: #0d9488;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        thead {
+            background: #1f2937;
+            color: white;
+        }
+        th {
+            padding: 8px 6px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: bold;
+            border: 1px solid #374151;
+        }
+        td {
+            padding: 6px;
+            text-align: center;
+            font-size: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+        .badge-in { background: #d1fae5; color: #065f46; }
+        .badge-out { background: #fee2e2; color: #991b1b; }
+        .badge-leave-justified { background: #d1fae5; color: #065f46; }
+        .badge-leave-unjustified { background: #fee2e2; color: #991b1b; }
+        .badge-return { background: #dbeafe; color: #1e40af; }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 9px;
+            color: #9ca3af;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🏥 صيدلية المقري شنن عثمان</h1>
+        <p><strong>تقرير الحضور والانصراف</strong></p>
+        <p>الفترة: من {{ start_date }} إلى {{ end_date }}</p>
+        <p>تاريخ التقرير: {{ print_date }}</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <span class="label">إجمالي السجلات</span>
+            <span class="value">{{ stats.total_records }}</span>
+        </div>
+        <div class="stat-box">
+            <span class="label">الحاضرون</span>
+            <span class="value" style="color: #10b981;">{{ stats.present_count }}</span>
+        </div>
+        <div class="stat-box">
+            <span class="label">المتأخرون</span>
+            <span class="value" style="color: #f59e0b;">{{ stats.late_count }}</span>
+        </div>
+        <div class="stat-box">
+            <span class="label">دقائق التأخير</span>
+            <span class="value" style="color: #ef4444;">{{ stats.total_late }}</span>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 60px;">التاريخ</th>
+                <th style="width: 50px;">الكود</th>
+                <th>الموظف</th>
+                <th style="width: 70px;">الحدث</th>
+                <th style="width: 60px;">الوقت</th>
+                <th style="width: 50px;">التأخير</th>
+                <th style="width: 50px;">المدة</th>
+                <th>السبب</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr>
+                <td>{{ r.date }}</td>
+                <td>{{ r.code }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ r.name }}</td>
+                <td>
+                    {% if 'حضور' in r.event_type %}
+                    <span class="badge badge-in">{{ r.event_type }}</span>
+                    {% elif 'انصراف نهائي' in r.event_type %}
+                    <span class="badge badge-out">{{ r.event_type }}</span>
+                    {% elif 'بسبب' in r.event_type %}
+                        {% if r.justified == 'justified' %}
+                        <span class="badge badge-leave-justified">{{ r.event_type }} ✅</span>
+                        {% elif r.justified == 'unjustified' %}
+                        <span class="badge badge-leave-unjustified">{{ r.event_type }} ⚠️</span>
+                        {% else %}
+                        <span class="badge badge-leave-justified">{{ r.event_type }}</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="badge badge-return">{{ r.event_type }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ r.time }}</td>
+                <td>
+                    {% if r.late > 0 %}
+                    <span style="color: #ef4444; font-weight: bold;">{{ r.late }} د</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    {% if r.duration > 0 %}
+                    <span style="color: #f59e0b;">{{ r.duration }} د</span>
+                    {% else %}-{% endif %}
+                </td>
+                <td style="text-align: right; font-size: 9px;">
+                    {% if r.justified == 'justified' %}
+                    <span style="color: #065f46;">✅ {{ r.reason }}</span>
+                    {% elif r.justified == 'unjustified' %}
+                    <span style="color: #991b1b;">⚠️ {{ r.reason }}</span>
+                    {% else %}
+                    {{ r.reason }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>🏥 صيدلية المقري شنن عثمان — نظام الحضور الذكي</p>
+        <p>✅ = مبرر | ⚠️ = غير مبرر</p>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة الحضور</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(135deg, #065f46, #0f172a); min-height: 100vh; }
+        #qrcode img, #qrcode canvas {
+            width: 400px !important;
+            height: 400px !important;
+            border: 10px solid white;
+            border-radius: 24px;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 0 60px rgba(16, 185, 129, 0.4);
+        }
+        @media (max-width: 600px) {
+            #qrcode img, #qrcode canvas {
+                width: 280px !important;
+                height: 280px !important;
+            }
+        }
+        .timer-bar {
+            height: 8px;
+            background: #10b981;
+            transition: width 1s linear;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="text-white p-4">
+
+    <div class="max-w-2xl mx-auto min-h-screen flex flex-col justify-center">
+
+        <div class="text-center mb-6">
+            <div class="text-5xl mb-2">💊</div>
+            <h1 class="text-3xl md:text-4xl font-black">صيدلية المقري شنن عثمان</h1>
+            <p class="text-emerald-300 mt-2">سجّل حضورك الآن</p>
+        </div>
+
+        <div class="flex justify-center mb-4">
+            <div id="qrcode"></div>
+        </div>
+
+        <div class="bg-white/10 backdrop-blur rounded-2xl p-4 mb-4 text-center">
+            <p class="font-bold mb-1">📱 امسح الرمز بكاميرا هاتفك</p>
+            <p class="text-sm text-emerald-200">ثم أدخل كودك و PIN</p>
+        </div>
+
+        <div class="bg-slate-800 rounded-full overflow-hidden mb-2">
+            <div id="timer-bar" class="timer-bar" style="width: 100%"></div>
+        </div>
+        <div class="text-center text-xs text-slate-400">
+            يتجدد الرمز خلال <span id="ttl">30</span> ثانية
+        </div>
+
+        <div class="text-center mt-6">
+            <div id="clock" class="text-2xl font-black text-cyan-400">--:--:--</div>
+        </div>
+
+    </div>
+
+    <script>
+        let countdown = 30;
+        const baseUrl = "{{ base_url }}";
+
+        function generateQR(url) {
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: url,
+                width: 400,
+                height: 400,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.L
+            });
+        }
+
+        function fetchToken() {
+            fetch('/api/door_token')
+                .then(r => r.json())
+                .then(data => {
+                    generateQR(data.url);
+                    countdown = data.ttl;
+                    updateTimer();
+                })
+                .catch(() => {
+                    setTimeout(fetchToken, 1000);
+                });
+        }
+
+        function updateTimer() {
+            const bar = document.getElementById('timer-bar');
+            const ttlEl = document.getElementById('ttl');
+
+            bar.style.width = (countdown / 30 * 100) + '%';
+            ttlEl.innerText = countdown;
+
+            if (countdown <= 0) {
+                fetchToken();
+                return;
+            }
+            countdown--;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').innerText = `${h}:${m}:${s}`;
+        }
+
+        fetchToken();
+        setInterval(updateTimer, 1000);
+        setInterval(updateClock, 1000);
+        updateClock();
+        setInterval(fetchToken, 30000);
+    </script>
+</body>
+</html>
